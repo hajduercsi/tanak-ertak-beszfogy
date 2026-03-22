@@ -21,7 +21,6 @@
     }
 
     *{box-sizing:border-box}
-
     body{
       margin:0;
       font-family:Arial, Helvetica, sans-serif;
@@ -180,7 +179,6 @@
       position:sticky;
       bottom:0;
       padding-top:8px;
-      z-index:5;
     }
 
     .action-bar{
@@ -209,11 +207,6 @@
       background:var(--accent-dark);
     }
 
-    .primary:disabled{
-      opacity:0.8;
-      cursor:not-allowed;
-    }
-
     .secondary{
       background:#eef2ff;
       color:#1e3a8a;
@@ -221,6 +214,7 @@
 
     .danger-text{ color:var(--bad); font-weight:700; }
     .good-text{ color:var(--good); font-weight:700; }
+    .warn-text{ color:var(--warn); font-weight:700; }
 
     .results{
       margin-top:18px;
@@ -267,35 +261,34 @@
       font-weight:700;
     }
 
-    .status-box{
+    .gate{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,0.72);
       display:none;
-      margin-top:16px;
-      padding:14px;
-      border-radius:12px;
-      border:1px solid #fed7aa;
-      background:#fff7ed;
-      color:#9a3412;
-      font-weight:700;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      z-index:9999;
     }
 
-    .inline-lock-panel{
-      display:none;
-      margin-top:18px;
-      padding:18px;
-      border-radius:16px;
-      border:1px solid #fed7aa;
-      background:#fff7ed;
-      box-shadow:var(--shadow);
+    .gate-box{
+      width:min(520px, 100%);
+      background:#fff;
+      border-radius:18px;
+      padding:24px 18px;
+      box-shadow:0 20px 50px rgba(0,0,0,0.22);
+      border:1px solid #dbe3ee;
     }
 
-    .inline-lock-panel h2{
-      margin:0 0 10px;
-      font-size:1.2rem;
-      color:#9a3412;
+    .gate-box h2{
+      margin-top:0;
+      margin-bottom:10px;
+      font-size:1.4rem;
     }
 
-    .inline-lock-panel p{
-      margin:0 0 12px;
+    .gate-box p{
+      margin:0 0 14px;
     }
 
     .pin-row{
@@ -312,13 +305,22 @@
       border-radius:12px;
       border:1px solid #cbd5e1;
       font-size:1rem;
-      background:#fff;
     }
 
     .small{
       font-size:0.92rem;
       color:var(--muted);
       margin-top:10px;
+    }
+
+    .locked-banner{
+      margin-top:10px;
+      padding:12px 14px;
+      border-radius:12px;
+      background:#fff7ed;
+      border:1px solid #fed7aa;
+      color:#9a3412;
+      font-weight:700;
     }
 
     @media (max-width: 640px){
@@ -346,7 +348,7 @@
       <div class="note">
         Figyelem: ha a teszt futása közben elhagyod az oldalt, másik alkalmazásra váltasz, vagy a böngésző háttérbe kerül, a teszt érvénytelenné válik.
       </div>
-      <div id="statusBanner" class="status-box"></div>
+      <div id="statusBanner" class="locked-banner" style="display:none;"></div>
     </section>
 
     <form id="testForm" class="test-form"></form>
@@ -356,22 +358,24 @@
     </div>
 
     <section id="results" class="results"></section>
+  </div>
 
-    <section id="inlineLockPanel" class="inline-lock-panel">
-      <h2 id="inlineLockTitle">Lezárt teszt.</h2>
-      <p id="inlineLockMessage"></p>
+  <div id="gate" class="gate">
+    <div class="gate-box">
+      <h2 id="gateTitle">Hozzáférés korlátozva</h2>
+      <p id="gateMessage"></p>
       <div class="pin-row">
         <input type="password" id="pinInput" placeholder="Tanári PIN-kód" inputmode="numeric" />
         <button id="unlockBtn" class="secondary" type="button">Feloldás</button>
       </div>
       <div id="pinError" class="small danger-text" style="display:none;">Hibás PIN-kód.</div>
       <div class="small">A feloldás után a teszt ugyanebben a böngészőben újra megnyitható.</div>
-    </section>
+    </div>
   </div>
 
   <script>
     const ADMIN_PIN = '2023';
-    const STORAGE_KEY = 'teszt_beszed_tanak_state_v4';
+    const STORAGE_KEY = 'teszt_beszed_tanak_state_v2';
 
     const testData = [
       {
@@ -658,13 +662,13 @@
     const form = document.getElementById('testForm');
     const results = document.getElementById('results');
     const submitBtn = document.getElementById('submitBtn');
+    const gate = document.getElementById('gate');
+    const gateTitle = document.getElementById('gateTitle');
+    const gateMessage = document.getElementById('gateMessage');
     const pinInput = document.getElementById('pinInput');
     const unlockBtn = document.getElementById('unlockBtn');
     const pinError = document.getElementById('pinError');
     const statusBanner = document.getElementById('statusBanner');
-    const inlineLockPanel = document.getElementById('inlineLockPanel');
-    const inlineLockTitle = document.getElementById('inlineLockTitle');
-    const inlineLockMessage = document.getElementById('inlineLockMessage');
 
     function getState() {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -869,49 +873,43 @@
         `).join('')}
       `;
       results.style.display = 'flex';
+      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function disableForm() {
-      form.querySelectorAll('input, select').forEach(el => el.disabled = true);
+      form.querySelectorAll('input, select, button').forEach(el => el.disabled = true);
       submitBtn.disabled = true;
       submitBtn.textContent = 'Lezárva';
     }
 
     function enableForm() {
-      form.querySelectorAll('input, select').forEach(el => el.disabled = false);
+      form.querySelectorAll('input, select, button').forEach(el => el.disabled = false);
       submitBtn.disabled = false;
       submitBtn.textContent = 'Értékelés';
     }
 
-    function showStatus(message) {
-      statusBanner.style.display = 'block';
-      statusBanner.textContent = message;
-    }
-
-    function hideStatus() {
-      statusBanner.style.display = 'none';
-      statusBanner.textContent = '';
-    }
-
-    function showInlineLock(mode) {
+    function showGate(mode) {
+      gate.style.display = 'flex';
       pinInput.value = '';
       pinError.style.display = 'none';
-      inlineLockPanel.style.display = 'block';
 
       if (mode === 'invalid') {
-        showStatus('Sajnálom, a teszted érvénytelen lett! :(');
-        inlineLockTitle.textContent = 'Sajnálom, a teszted érvénytelen lett! :(';
-        inlineLockMessage.textContent = 'A teszt ezen az eszközön és ebben a böngészőben csak tanári PIN-kóddal nyitható meg újra.';
+        gateTitle.textContent = 'Sajnálom, a teszted érvénytelen lett! :(';
+        gateMessage.textContent = 'A teszt ezen az eszközön és ebben a böngészőben csak tanári PIN-kóddal nyitható meg újra.';
+        statusBanner.style.display = 'block';
+        statusBanner.textContent = 'Sajnálom, a teszted érvénytelen lett! :(';
       } else if (mode === 'locked') {
-        showStatus('Lezárt teszt.');
-        inlineLockTitle.textContent = 'Lezárt teszt.';
-        inlineLockMessage.textContent = 'Az értékelés megtörtént. A teszt csak tanári PIN-kóddal oldható fel. A javítást lejjebb végig lehet nézni.';
+        gateTitle.textContent = 'Lezárt teszt.';
+        gateMessage.textContent = 'Az értékelés megtörtént. A teszt csak tanári PIN-kóddal oldható fel.';
+        statusBanner.style.display = 'block';
+        statusBanner.textContent = 'Lezárt teszt.';
       }
     }
 
-    function hideInlineLock() {
-      inlineLockPanel.style.display = 'none';
-      hideStatus();
+    function hideGate() {
+      gate.style.display = 'none';
+      statusBanner.style.display = 'none';
+      statusBanner.textContent = '';
     }
 
     function invalidateTest() {
@@ -919,14 +917,13 @@
       if (state.status !== 'active') return;
       setState({ status: 'invalid', at: new Date().toISOString() });
       disableForm();
-      showInlineLock('invalid');
-      inlineLockPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showGate('invalid');
     }
 
     function lockAfterEvaluation() {
       setState({ status: 'locked', at: new Date().toISOString() });
       disableForm();
-      showInlineLock('locked');
+      showGate('locked');
     }
 
     function applySavedState() {
@@ -934,26 +931,25 @@
 
       if (state.status === 'invalid') {
         disableForm();
-        showInlineLock('invalid');
+        showGate('invalid');
         return;
       }
 
       if (state.status === 'locked') {
         disableForm();
-        showInlineLock('locked');
+        showGate('locked');
         return;
       }
 
-      hideInlineLock();
+      hideGate();
       enableForm();
     }
 
     unlockBtn.addEventListener('click', () => {
       if (pinInput.value === ADMIN_PIN) {
         resetState();
-        hideInlineLock();
+        hideGate();
         results.style.display = 'none';
-        results.innerHTML = '';
         form.reset();
         enableForm();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -979,7 +975,6 @@
       const resultData = scoreTest();
       renderResults(resultData);
       lockAfterEvaluation();
-      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     document.addEventListener('visibilitychange', () => {
